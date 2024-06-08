@@ -32,6 +32,7 @@ async function run() {
     // collections 
     const blogCollection = client.db('bloodWavedb').collection('blog')
     const userCollection = client.db('bloodWavedb').collection('user')
+    const requestCollection = client.db('bloodWavedb').collection('request')
 
     // blog api
     app.get('/blog', async (req, res) => {
@@ -59,6 +60,66 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/users', async (req, res) => {
+      const result = await userCollection.find().toArray()
+      res.send(result)
+    })
+
+    // request related api
+
+    app.get('/request', async (req, res) => {
+      const result = await requestCollection.find().toArray()
+      res.send(result)
+    })
+
+    app.get('/request/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { requesterEmail: email }
+      const result = await requestCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    app.get('/requests/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await requestCollection.findOne(query)
+      res.send(result)
+    })
+
+    app.post('/request', async (req, res) => {
+      const request = req.body;
+      const result = await requestCollection.insertOne(request);
+      res.send(result)
+    })
+
+    app.patch('/requests/:id', async (req, res) => {
+      const data = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updateReq = {
+        $set: {
+          requesterName: data.requesterName,
+          requesterEmail: data.requesterEmail,
+          recipientName: data.recipientName,
+          recipientAddress: data.recipientAddress, 
+          donationDate: data.donationDate,
+          donationTime: data.donationTime,
+          bloodGroup: data.bloodGroup,
+          requestMessage: data.requestMessage, 
+        }
+      }
+      const result = await requestCollection.updateOne(filter,updateReq)
+      res.send(result)
+
+    })
+
+    
+    app.delete('/requests/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await requestCollection.deleteOne(query)
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
