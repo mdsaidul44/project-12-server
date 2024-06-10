@@ -11,21 +11,24 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const verifyToken = (req, res, next) => {
+const verifyToken = (req, res, next) => { 
   console.log('inside verifyToken', req.headers.authorization);
   if (!req.headers.authorization) {
-    return req.status(401).send({ message: 'unauthorized access' })
+    return res.status(401).send({ message: 'unauthorized access' })
   }
-  const token = req.headers.authorization.split(' '[1])
+  const token = req.headers.authorization.split(' ')[1]
+  console.log('token ---',token)
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
-      return req.status(403).send({ message: 'forbidden access' })
+      console.log("This is error",err)
+      return res.status(403).send({ message: 'forbidden access from verify  ' })
     }
     req.decoded = decoded;
     next()
   })
 }
 
+ 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pb63j1a.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -58,8 +61,10 @@ async function run() {
     // use verify admin after verifyToken
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
+      // console.log('decoded email',email)
       const query = { email: email }
       const user = await userCollection.findOne(query)
+      console.log('This is user admin',user)
       const isAdmin = user?.role === 'admin'
       if (!isAdmin) {
         return res.status(403).send({ message: 'forbidden' })
@@ -71,8 +76,10 @@ async function run() {
     // user verify volunteer api
     const verifyVolunteer = async (req, res, next) => {
       const email = req.decoded.email;
+      console.log('decoded email:',email)
       const query = { email: email }
       const user = await userCollection.findOne(query)
+      console.log('this is users',user)
       const isVolunteer = user?.role === 'volunteer'
       if (!isVolunteer) {
         return res.status(403).send({ message: 'forbidden' })
@@ -83,14 +90,16 @@ async function run() {
 
     // user related api
 
-    app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+    app.get('/users',   async (req, res) => {
       const result = await userCollection.find().toArray()
       res.send(result)
     })
 
-    app.get('/users/admin/:email', verifyToken, async (req, res) => {
+    app.get('/users/admin/:email',verifyToken,verifyAdmin,  async (req, res) => {
       const email = req.params.email;
-      if (email !== req.decoded.email) {
+      console.log('email',email)
+      console.log('decoded email: ',req.decoded.email)
+      if (email !== req.decoded.email) { 
         return res.status(403).send({ message: 'forbidden access' })
       }
       const query = { email: email };
@@ -102,7 +111,7 @@ async function run() {
       res.send({ admin })
     })
 
-    app.get('/user/volunteer/:email', async (req, res) => {
+    app.get('/user/volunteer/:email',verifyToken,verifyVolunteer,async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: 'forbidden access' })
@@ -116,7 +125,7 @@ async function run() {
       res.send({ volunteer })
     })
 
-    app.post('/users', async (req, res) => {
+    app.post('/users',verifyToken,verifyAdmin, async (req, res) => {
       const user = req.body;
       const query = { email: user.email }
       const existingUser = await userCollection.findOne(query)
@@ -127,6 +136,38 @@ async function run() {
       res.send(result)
     })
 
+    
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          role: 'admin'
+        }
+      }
+      const result = await userCollection.updateOne(filter, updatedDoc);
+      res.send(result)
+    })
+
+    app.patch('/users/volunteer/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          role: 'volunteer'
+        }
+      }
+      const result = await userCollection.updateOne(filter, updatedDoc);
+      res.send(result)
+    })
+
+    
+    app.delete('/users/:id', verifyToken,async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(query)
+      res.send(result)
+    })
 
     // blog api
     app.get('/blog', async (req, res) => {
