@@ -12,15 +12,15 @@ app.use(cors());
 app.use(express.json());
 
 const verifyToken = (req, res, next) => { 
-  console.log('inside verifyToken', req.headers.authorization);
+  // console.log('inside verifyToken', req.headers.authorization);
   if (!req.headers.authorization) {
     return res.status(401).send({ message: 'unauthorized access' })
   }
   const token = req.headers.authorization.split(' ')[1]
-  console.log('token ---',token)
+  // console.log('token ---',token)
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
-      console.log("This is error",err)
+      // console.log("This is error",err)
       return res.status(403).send({ message: 'forbidden access from verify  ' })
     }
     req.decoded = decoded;
@@ -52,11 +52,27 @@ async function run() {
     const requestCollection = client.db('bloodWavedb').collection('request')
 
     // jwt related api
-    app.post('/jwt', async (req, res) => {
+    // app.post('/jwt', async (req, res) => {
+    //   const user = req.body;
+    //   const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+    //   res.send({ token })
+    // })
+
+     
+    app.post('/jwt',async(req,res)=>{
       const user = req.body;
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
-      res.send({ token })
+      // console.log(user)
+      // console.log('user fot token', user)
+      const token  = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{expiresIn: '1h'})
+      res.cookie('token',token,{
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      })
+      .send({token})
     })
+
+    
 
     // use verify admin after verifyToken
     const verifyAdmin = async (req, res, next) => {
@@ -64,7 +80,7 @@ async function run() {
       // console.log('decoded email',email)
       const query = { email: email }
       const user = await userCollection.findOne(query)
-      console.log('This is user admin',user)
+      // console.log('This is user admin',user)
       const isAdmin = user?.role === 'admin'
       if (!isAdmin) {
         return res.status(403).send({ message: 'forbidden' })
@@ -76,10 +92,10 @@ async function run() {
     // user verify volunteer api
     const verifyVolunteer = async (req, res, next) => {
       const email = req.decoded.email;
-      console.log('decoded email:',email)
+      // console.log('decoded email:',email)
       const query = { email: email }
       const user = await userCollection.findOne(query)
-      console.log('this is users',user)
+      // console.log('this is users',user)
       const isVolunteer = user?.role === 'volunteer'
       if (!isVolunteer) {
         return res.status(403).send({ message: 'forbidden' })
@@ -90,15 +106,15 @@ async function run() {
 
     // user related api
 
-    app.get('/users',   async (req, res) => {
+    app.get('/users',verifyToken,verifyAdmin,verifyVolunteer,  async (req, res) => {
       const result = await userCollection.find().toArray()
       res.send(result)
     })
 
     app.get('/users/admin/:email',verifyToken,verifyAdmin,  async (req, res) => {
       const email = req.params.email;
-      console.log('email',email)
-      console.log('decoded email: ',req.decoded.email)
+      // console.log('email',email)
+      // console.log('decoded email: ',req.decoded.email)
       if (email !== req.decoded.email) { 
         return res.status(403).send({ message: 'forbidden access' })
       }
@@ -113,6 +129,7 @@ async function run() {
 
     app.get('/user/volunteer/:email',verifyToken,verifyVolunteer,async (req, res) => {
       const email = req.params.email;
+      // console.log('email',email,req.decoded.email)
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: 'forbidden access' })
       }
@@ -125,7 +142,7 @@ async function run() {
       res.send({ volunteer })
     })
 
-    app.post('/users',verifyToken,verifyAdmin, async (req, res) => {
+    app.post('/users', async (req, res) => {
       const user = req.body;
       const query = { email: user.email }
       const existingUser = await userCollection.findOne(query)
@@ -149,7 +166,20 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/users/volunteer/:id', async (req, res) => {
+    app.patch('/user/:id', async (req, res) => {
+      const data = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          status: data.status
+        }
+      }
+      const result = await userCollection.updateOne(filter, updatedDoc);
+      res.send(result)
+    }) 
+
+    app.patch('/users/volunteer/:id',  async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const updatedDoc = {
@@ -183,6 +213,54 @@ async function run() {
       res.send(result)
     })
 
+    app.post('/blog', async (req, res) => {
+      const blog = req.body;
+      const result = await blogCollection.insertOne(blog);
+      res.send(result)
+    })
+
+    app.patch('/blog/:id', async (req, res) => { 
+      const data = req.body; 
+      // console.log(data)
+      // console.log("this is data",data)
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updateBlog = {
+        $set: {
+           status: data.status
+        }
+      } 
+      console.log(updateBlog)
+      const result = await blogCollection.updateOne(filter, updateBlog)
+      res.send(result)
+
+    })
+
+    app.patch('/blogs/:id', async (req, res) => {
+      const data = req.body;
+      console.log(data)
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updateBlog = {
+        $set: {
+          title: data.title,
+          img: data.image,
+          content: data.content,
+          publishDate: data.date,
+          status: data.status
+        }
+      }
+      const result = await blogCollection.updateOne(filter, updateBlog)
+      res.send(result)
+
+    })
+
+    app.delete('/blog/:id',async(req,res)=>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await blogCollection.deleteOne(query)
+      res.send(result)
+    })
 
     // request related api
 
@@ -225,6 +303,21 @@ async function run() {
           donationTime: data.donationTime,
           bloodGroup: data.bloodGroup,
           requestMessage: data.requestMessage,
+          status: data.status
+        }
+      }
+      const result = await requestCollection.updateOne(filter, updateReq)
+      res.send(result)
+
+    })
+
+    app.patch('/request/:id', async (req, res) => {
+      const data = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updateReq = {
+        $set: { 
+          status: data.status
         }
       }
       const result = await requestCollection.updateOne(filter, updateReq)
