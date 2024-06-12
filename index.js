@@ -106,7 +106,7 @@ async function run() {
 
     // user related api
 
-    app.get('/users',verifyToken,verifyAdmin,verifyVolunteer,  async (req, res) => {
+    app.get('/users',verifyToken,verifyAdmin,   async (req, res) => {
       const result = await userCollection.find().toArray()
       res.send(result)
     })
@@ -154,7 +154,7 @@ async function run() {
     })
 
     
-    app.patch('/users/admin/:id', async (req, res) => {
+    app.patch('/users/admin/:id',verifyToken,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const updatedDoc = {
@@ -166,7 +166,7 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/user/:id', async (req, res) => {
+    app.patch('/user/:id',verifyToken,verifyAdmin, async (req, res) => {
       const data = req.body;
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
@@ -179,7 +179,7 @@ async function run() {
       res.send(result)
     }) 
 
-    app.patch('/users/volunteer/:id',  async (req, res) => {
+    app.patch('/users/volunteer/:id',verifyToken,verifyAdmin,  async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const updatedDoc = {
@@ -192,7 +192,7 @@ async function run() {
     })
 
     
-    app.delete('/users/:id', verifyToken,async (req, res) => {
+    app.delete('/users/:id', verifyToken,verifyAdmin,async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await userCollection.deleteOne(query)
@@ -220,9 +220,7 @@ async function run() {
     })
 
     app.patch('/blog/:id', async (req, res) => { 
-      const data = req.body; 
-      // console.log(data)
-      // console.log("this is data",data)
+      const data = req.body;  
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const updateBlog = {
@@ -236,17 +234,17 @@ async function run() {
 
     })
 
-    app.patch('/blogs/:id', async (req, res) => {
+    app.patch('/blogs/:id' , async (req, res) => {
       const data = req.body;
-      console.log(data)
+      console.log(data) 
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const updateBlog = {
         $set: {
           title: data.title,
-          img: data.image,
-          content: data.content,
-          publishDate: data.date,
+          img: data.img,
+          description: data.description,
+          publishDate: data.publishDate,
           status: data.status
         }
       }
@@ -311,7 +309,7 @@ async function run() {
 
     })
 
-    app.patch('/request/:id', async (req, res) => {
+    app.patch('/request/:id',verifyToken,verifyAdmin, async (req, res) => {
       const data = req.body;
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
@@ -326,7 +324,7 @@ async function run() {
     })
 
 
-    app.delete('/requests/:id', async (req, res) => {
+    app.delete('/requests/:id',verifyToken,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await requestCollection.deleteOne(query)
