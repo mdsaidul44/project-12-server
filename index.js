@@ -49,6 +49,7 @@ async function run() {
 
     // collections 
     const blogCollection = client.db('bloodWavedb').collection('blog')
+    const contactCollection = client.db('bloodWavedb').collection('contact')
     const userCollection = client.db('bloodWavedb').collection('user')
     const requestCollection = client.db('bloodWavedb').collection('request')
 
@@ -103,6 +104,12 @@ async function run() {
       }
       next()
     }
+    
+    // contact api
+    app.get('/contact',async(req,res)=>{
+      const result = await contactCollection.find().toArray()
+      res.send(result)
+    })
 
 
     // user related api
